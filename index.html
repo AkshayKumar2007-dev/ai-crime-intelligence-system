@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CrimeIntel AI — Multi-Agent Crime Intelligence System</title>
+  <meta name="description" content="AI-powered multi-agent crime intelligence and complaint triage system for law enforcement. Real-time analysis, automated routing, and intelligent threat assessment.">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .particles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+    .particle {
+      position: absolute;
+      width: 2px; height: 2px;
+      border-radius: 50%;
+      background: rgba(0, 212, 255, 0.5);
+      animation: float-particle var(--duration) ease-in-out infinite;
+      animation-delay: var(--delay);
+    }
+    @keyframes float-particle {
+      0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { transform: translateY(-100vh) translateX(var(--drift)); opacity: 0; }
+    }
+    .agent-showcase {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 380px;
+      margin: 0 auto;
+    }
+    .agent-showcase-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      background: rgba(13, 20, 40, 0.8);
+      border: 1px solid rgba(255,255,255,0.06);
+      backdrop-filter: blur(10px);
+      animation: agent-item-in 0.5s ease both;
+    }
+    @keyframes agent-item-in {
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .agent-showcase-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .agent-showcase-label { font-size: 12px; font-weight: 600; flex: 1; }
+    .agent-showcase-status { font-size: 10px; font-family: var(--font-mono); }
+    .stats-bar {
+      display: flex; gap: 40px; justify-content: center;
+      padding: 32px 40px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      margin: 40px 0;
+      background: rgba(0,0,0,0.2);
+    }
+    .stat-item { text-align: center; }
+    .stat-item .num { font-size: 32px; font-weight: 800; background: linear-gradient(135deg, #00d4ff, #7b2fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .stat-item .lbl { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; }
+    .flow-diagram {
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px; flex-wrap: wrap;
+      padding: 40px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .flow-node {
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 13px; font-weight: 600;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(13,20,40,0.8);
+      display: flex; align-items: center; gap: 8px;
+      transition: var(--transition);
+      animation: node-pulse 3s ease-in-out infinite;
+      animation-delay: var(--delay);
+    }
+    .flow-node:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+    @keyframes node-pulse {
+      0%, 100% { border-color: rgba(255,255,255,0.1); }
+      50% { border-color: var(--node-c); box-shadow: 0 0 16px var(--glow-c); }
+    }
+    .flow-arrow { color: var(--text-muted); font-size: 20px; flex-shrink: 0; }
+    .cta-section {
+      text-align: center;
+      padding: 80px 40px;
+      position: relative;
+    }
+    .cta-section::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 60% 60% at 50% 50%, rgba(0,212,255,0.04) 0%, transparent 70%);
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 24px 40px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    .flow-live { color: var(--text-accent); font-size: 12px; margin-left: 8px; animation: pulse-dot 1.5s infinite; }
+    .flow-node.live { box-shadow: 0 0 20px var(--glow-c); border-color: var(--node-c) !important; }
+    #live-case-num { color: var(--text-accent); font-weight: 700; }
+  </style>
+  <link rel="stylesheet" href="css/cyberpunk.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <div class="shield-icon">🛡️</div>
+      <span>CrimeIntel <span class="accent">AI</span></span>
+    </div>
+    <div class="navbar-nav">
+      <a href="/" class="nav-link active">Home</a>
+      <a href="/complaint" class="nav-link">File Complaint</a>
+      <a href="/dashboard" class="nav-link">Dashboard</a>
+      <a href="/agents" class="nav-link">Agent Monitor</a>
+    </div>
+    <div class="navbar-actions">
+      <span id="mode-badge" class="mode-badge mock">DEMO MODE</span>
+      <a href="/complaint" class="btn btn-primary btn-sm">+ New Complaint</a>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="particles" id="particles"></div>
+      <div class="hero-bg"></div>
+      <div class="hero-grid"></div>
+      <div class="hero-content">
+        <div class="hero-badge">
+          <div class="dot"></div>
+          AI-POWERED CRIME INTELLIGENCE SYSTEM
+        </div>
+        <h1 class="hero-title">
+          6 AI Agents.<br>
+          <span class="gradient-text">One Unified Command.</span>
+        </h1>
+        <p class="hero-subtitle">
+          An autonomous multi-agent system that ingests citizen complaints, runs them through a chain of specialized AI agents, and delivers intelligent triage — in seconds.
+        </p>
+        <div class="hero-actions">
+          <a href="/complaint" class="btn btn-primary btn-lg">🚔 File a Complaint</a>
+          <a href="/dashboard" class="btn btn-outline btn-lg">📊 Command Center</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+      <div class="stat-item">
+        <div class="num" id="stat-total">—</div>
+        <div class="lbl">Cases Processed</div>
+      </div>
+      <div class="stat-item">
+        <div class="num" id="stat-critical">—</div>
+        <div class="lbl">Critical Alerts</div>
+      </div>
+      <div class="stat-item">
+        <div class="num">6</div>
+        <div class="lbl">AI Agents Active</div>
+      </div>
+      <div class="stat-item">
+        <div class="num">&lt;3s</div>
+        <div class="lbl">Avg Triage Time</div>
+      </div>
+      <div class="stat-item">
+        <div class="num" id="stat-open">—</div>
+        <div class="lbl">Open Cases</div>
+      </div>
+    </div>
+
+    <!-- Agent Flow Diagram -->
+    <div style="text-align:center; padding: 60px 40px 20px;">
+      <p style="font-size:12px; text-transform:uppercase; letter-spacing:0.12em; color:var(--text-muted); margin-bottom:8px;">Multi-Agent Pipeline</p>
+      <h2 style="font-size:32px; font-weight:800; margin-bottom:40px;">How It <span style="background: linear-gradient(135deg,#00d4ff,#7b2fff); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">Works</span></h2>
+    </div>
+    <div class="flow-diagram">
+      <div class="flow-node" style="--node-c:#00d4ff; --glow-c:rgba(0,212,255,0.2); --delay:0s">
+        <span>📥</span><span style="color:#00d4ff">Intake Agent</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node" style="--node-c:#7b2fff; --glow-c:rgba(123,47,255,0.2); --delay:0.5s">
+        <span>🔍</span><span style="color:#7b2fff">Classification</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node" style="--node-c:#ff8c42; --glow-c:rgba(255,140,66,0.2); --delay:1s">
+        <span>⚡</span><span style="color:#ff8c42">Severity</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node" style="--node-c:#ffd60a; --glow-c:rgba(255,214,10,0.2); --delay:1.5s">
+        <span>🗂️</span><span style="color:#ffd60a">Triage</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node" style="--node-c:#06d6a0; --glow-c:rgba(6,214,160,0.2); --delay:2s">
+        <span>🧠</span><span style="color:#06d6a0">Intelligence</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node" style="--node-c:#ff3b5c; --glow-c:rgba(255,59,92,0.2); --delay:2.5s">
+        <span>📋</span><span style="color:#ff3b5c">Summary</span>
+        <span class="flow-live" style="display:none">●</span>
+      </div>
+    </div>
+    <div style="text-align:center; padding: 8px 0; font-size:11px; color:var(--text-muted); font-family:var(--font-mono);">
+      <span style="color:var(--text-accent); animation: pulse-dot 1.5s infinite;">●</span>
+      Live — <span id="live-case-num" style="color:var(--text-accent);font-weight:700">0</span> cases processed today
+      &nbsp;·&nbsp;
+      <span id="live-agent-indicator" style="color:var(--text-secondary)">monitoring all 6 agents</span>
+    </div>
+
+    <!-- Features Grid -->
+    <div class="features-grid" style="padding-top: 40px;">
+      <div class="feature-card" style="--feature-color:#00d4ff">
+        <div class="feature-icon">🤖</div>
+        <div class="feature-title">6 Specialized AI Agents</div>
+        <div class="feature-desc">Each agent has a dedicated role — Intake, Classification, Severity Assessment, Triage, Intelligence Analysis, and Case Summarization — working in sequence to produce a complete case analysis.</div>
+      </div>
+      <div class="feature-card" style="--feature-color:#7b2fff">
+        <div class="feature-icon">⚡</div>
+        <div class="feature-title">Sub-3 Second Triage</div>
+        <div class="feature-desc">The entire 6-agent pipeline completes in under 3 seconds, providing officers with actionable intelligence before they even finish reading the complaint.</div>
+      </div>
+      <div class="feature-card" style="--feature-color:#ff8c42">
+        <div class="feature-icon">🗺️</div>
+        <div class="feature-title">Real-Time Crime Heatmap</div>
+        <div class="feature-desc">Interactive map overlays show crime concentrations, geo-risk zones, and active incidents across Indian cities — updated as new complaints arrive.</div>
+      </div>
+      <div class="feature-card" style="--feature-color:#ffd60a">
+        <div class="feature-icon">🧠</div>
+        <div class="feature-title">Pattern Intelligence</div>
+        <div class="feature-desc">The Intelligence Agent cross-references each complaint with known crime patterns, flags organized crime indicators, and identifies repeat offender MOs.</div>
+      </div>
+      <div class="feature-card" style="--feature-color:#06d6a0">
+        <div class="feature-icon">📋</div>
+        <div class="feature-title">IPC-Aware Classification</div>
+        <div class="feature-desc">Automatically identifies relevant IPC sections and routes cases to the correct department — CID, Cyber Cell, EOW, Crime Against Women Cell, and more.</div>
+      </div>
+      <div class="feature-card" style="--feature-color:#ff3b5c">
+        <div class="feature-icon">🚨</div>
+        <div class="feature-title">Severity-Based SLA</div>
+        <div class="feature-desc">CRITICAL cases trigger 1-hour SLA alerts, while lower severity cases are automatically queued appropriately — ensuring no case falls through the cracks.</div>
+      </div>
+    </div>
+
+    <!-- CTA Section -->
+    <div class="cta-section">
+      <h2 style="font-size:36px; font-weight:800; margin-bottom:16px;">Ready to see it in action?</h2>
+      <p style="color:var(--text-secondary); margin-bottom:32px; font-size:16px;">Submit a complaint and watch 6 AI agents analyze it in real time.</p>
+      <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+        <a href="/complaint" class="btn btn-primary btn-lg">🚔 File a Test Complaint</a>
+        <a href="/dashboard" class="btn btn-ghost btn-lg">📊 View Live Dashboard</a>
+        <a href="/agents" class="btn btn-ghost btn-lg">🤖 Watch Agent Activity</a>
+      </div>
+    </div>
+
+    <footer>
+      <p>🛡️ <strong>CrimeIntel AI</strong> — Built for the AI Agentathon &nbsp;|&nbsp; Powered by Google Gemini 2.0 Flash &nbsp;|&nbsp; Multi-Agent Crime Intelligence System</p>
+    </footer>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script>
+    // Create particles
+    const pc = document.getElementById('particles');
+    for (let i = 0; i < 40; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;--duration:${6+Math.random()*10}s;--delay:${Math.random()*10}s;--drift:${(Math.random()-0.5)*80}px;opacity:${Math.random()*0.6+0.2}`;
+      if (i % 3 === 0) p.style.background = 'rgba(123,47,255,0.5)';
+      if (i % 5 === 0) p.style.background = 'rgba(255,59,92,0.4)';
+      pc.appendChild(p);
+    }
+
+    // Fetch stats
+    fetch('/api/dashboard').then(r => r.json()).then(data => {
+      document.getElementById('stat-total').textContent = data.total;
+      document.getElementById('stat-critical').textContent = data.critical;
+      document.getElementById('stat-open').textContent = data.open;
+    }).catch(() => {
+      document.getElementById('stat-total').textContent = '20+';
+      document.getElementById('stat-critical').textContent = '4';
+      document.getElementById('stat-open').textContent = '12';
+    });
+
+    // Check mode
+    fetch('/api/health').then(r => r.json()).then(d => {
+      const badge = document.getElementById('mode-badge');
+      if (d.mode && d.mode.includes('LIVE')) {
+        badge.textContent = '⚡ LIVE (GEMINI)';
+        badge.className = 'mode-badge live';
+      }
+    }).catch(() => {});
+
+    // Live pipeline indicator
+    function updateLiveStats() {
+      Promise.all([
+        fetch('/api/dashboard/agents').then(r => r.json()).catch(() => ({})),
+        fetch('/api/dashboard').then(r => r.json()).catch(() => ({})),
+      ]).then(([agentStats, dashboard]) => {
+        const totalEl = document.getElementById('live-case-num');
+        const indicatorEl = document.getElementById('live-agent-indicator');
+        if (totalEl) totalEl.textContent = dashboard.total || 0;
+        if (indicatorEl) {
+          const active = Object.values(agentStats).filter(a => a.status === 'processing').length;
+          if (active > 0) {
+            indicatorEl.textContent = `⚡ ${active} agent${active > 1 ? 's' : ''} processing right now`;
+            indicatorEl.style.color = 'var(--text-accent)';
+          } else {
+            indicatorEl.textContent = 'all agents idle — ready for new complaints';
+            indicatorEl.style.color = 'var(--text-muted)';
+          }
+        }
+        // Mark pipeline nodes live
+        document.querySelectorAll('.flow-node').forEach(node => {
+          const name = node.dataset.agent;
+          const stats = agentStats[name];
+          const liveDot = node.querySelector('.flow-live');
+          if (stats && stats.status === 'processing' && liveDot) {
+            node.classList.add('live');
+            liveDot.style.display = 'inline';
+          } else if (liveDot) {
+            node.classList.remove('live');
+            liveDot.style.display = 'none';
+          }
+        });
+      }).catch(() => {});
+    }
+    updateLiveStats();
+    setInterval(updateLiveStats, 3000);
+  </script>
+</body>
+</html>

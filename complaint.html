@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File a Complaint — CrimeIntel AI</title>
+  <meta name="description" content="Submit a crime complaint for AI-powered triage and analysis. Watch 6 specialized AI agents process your complaint in real time.">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .complaint-layout {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 28px;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 40px 24px;
+      min-height: calc(100vh - 64px);
+      align-items: start;
+    }
+    .form-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: 36px;
+      backdrop-filter: blur(10px);
+    }
+    .page-title { font-size: 26px; font-weight: 800; margin-bottom: 6px; }
+    .page-subtitle { font-size: 14px; color: var(--text-secondary); margin-bottom: 32px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .complaint-textarea {
+      min-height: 180px;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+    .char-count { font-size: 11px; color: var(--text-muted); text-align: right; margin-top: 4px; }
+    .submit-section {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 28px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+    .disclaimer { font-size: 12px; color: var(--text-muted); max-width: 300px; }
+    /* Pipeline sidebar */
+    .pipeline-sidebar { position: sticky; top: 88px; }
+    .pipeline-header { margin-bottom: 16px; }
+    .pipeline-header h3 { font-size: 15px; font-weight: 700; }
+    .pipeline-header p { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+    /* Success screen */
+    .success-screen {
+      display: none;
+      text-align: center;
+      padding: 48px 36px;
+    }
+    .success-screen.visible { display: block; }
+    .form-body { transition: opacity 0.3s; }
+    .form-body.hidden { display: none; }
+    .success-icon {
+      font-size: 64px;
+      display: block;
+      margin-bottom: 20px;
+      animation: bounce-in 0.5s ease;
+    }
+    @keyframes bounce-in {
+      0% { transform: scale(0); opacity: 0; }
+      70% { transform: scale(1.15); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .case-id-display {
+      font-family: var(--font-mono);
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-accent);
+      padding: 16px 24px;
+      border-radius: var(--radius-md);
+      background: rgba(0,212,255,0.08);
+      border: 1px solid rgba(0,212,255,0.2);
+      display: inline-block;
+      margin: 16px 0;
+      letter-spacing: 0.05em;
+    }
+
+    /* Tips */
+    .tip-box {
+      padding: 14px 16px;
+      border-radius: var(--radius-md);
+      background: rgba(0,212,255,0.05);
+      border: 1px solid rgba(0,212,255,0.15);
+      margin-bottom: 16px;
+    }
+    .tip-box h4 { font-size: 12px; font-weight: 700; color: var(--text-accent); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+    .tip-box ul { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+    .tip-box ul li { font-size: 12px; color: var(--text-secondary); display: flex; gap: 6px; }
+    .tip-box ul li::before { content: '→'; color: var(--text-accent); flex-shrink: 0; }
+
+    .crime-examples {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      margin-top: 8px;
+    }
+    .crime-chip {
+      padding: 4px 10px;
+      border-radius: 14px;
+      font-size: 11px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .crime-chip:hover { background: rgba(0,212,255,0.08); color: var(--text-accent); border-color: rgba(0,212,255,0.2); }
+
+    /* Chatbox toggle */
+    .chatbox-toggle-wrap { margin-bottom: 12px; }
+    .chatbox-toggle {
+      width: 100%; display: flex; align-items: center; gap: 8px; justify-content: center;
+      padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border);
+      background: linear-gradient(135deg, rgba(123,47,255,0.12), rgba(0,212,255,0.08));
+      color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer;
+      transition: all 0.2s ease; text-align: left;
+    }
+    .chatbox-toggle:hover { border-color: rgba(123,47,255,0.4); color: var(--text-primary); background: linear-gradient(135deg, rgba(123,47,255,0.2), rgba(0,212,255,0.12)); }
+    .chatbox-toggle span:first-child { font-size: 16px; }
+
+    /* Chatbox panel */
+    .chatbox-panel { margin-top: 4px; }
+    .chatbox-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px; border-radius: var(--radius-md) var(--radius-md) 0 0;
+      border: 1px solid var(--border); border-bottom: none;
+      background: rgba(123,47,255,0.08);
+    }
+    .chatbox-close {
+      background: none; border: none; color: var(--text-muted); cursor: pointer;
+      font-size: 16px; padding: 4px 8px; border-radius: 6px; transition: all 0.15s;
+    }
+    .chatbox-close:hover { color: var(--critical); background: rgba(255,59,92,0.08); }
+    .chatbox-messages {
+      padding: 14px 18px; min-height: 120px; max-height: 260px; overflow-y: auto;
+      background: rgba(0,0,0,0.15); border: 1px solid var(--border); border-top: none;
+      border-bottom: none; border-radius: 0 0 var(--radius-md) var(--radius-md);
+    }
+    .chatbox-prompt { font-size: 12px; color: var(--text-muted); line-height: 1.5; font-style: italic; }
+    .chat-message { font-size: 12px; line-height: 1.6; margin-bottom: 12px; animation: fade-in 0.25s ease; }
+    @keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    .chat-message.user { color: var(--text-secondary); padding-left: 24px; position: relative; }
+    .chat-message.user::before { content: 'You'; position: absolute; left: 0; color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .chat-message.bot { padding-left: 24px; }
+    .chat-message.bot::before { content: 'AI Assistant'; position: absolute; left: 0; top: 0; color: var(--purple); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
+    .chat-message .section-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+    .chat-message .section-item {
+      display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 6px;
+      background: rgba(255,255,255,0.04); border-left: 3px solid var(--step-color, var(--purple));
+    }
+    .chat-message .section-item .sec-icon { font-size: 14px; }
+    .chat-message .section-item .sec-name { font-weight: 600; color: var(--text-primary); font-size: 12px; }
+    .chat-message .section-item .sec-detail { color: var(--text-muted); font-size: 11px; margin-left: auto; }
+    .chatbox-input-row {
+      display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+      border: 1px solid var(--border); border-top: none; border-radius: 0 0 var(--radius-md) var(--radius-md);
+      background: var(--bg-glass);
+    }
+    .chatbox-suggestions { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+    .chat-suggest {
+      padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: 600;
+      background: rgba(123,47,255,0.1); color: var(--purple); cursor: pointer; border: 1px solid transparent;
+      transition: all 0.15s;
+    }
+    .chat-suggest:hover { background: rgba(123,47,255,0.2); border-color: rgba(123,47,255,0.3); }
+    .chatbox-input-wrap { display: flex; gap: 4px; flex-shrink: 0; }
+    .chatbox-input {
+      border: none; background: transparent; color: var(--text-primary); font-size: 12px;
+      outline: none; padding: 6px 8px; width: 180px; font-family: inherit;
+    }
+    .chatbox-input::placeholder { color: var(--text-muted); }
+    .chatbox-send {
+      background: linear-gradient(135deg, var(--purple), #00d4ff); border: none; color: #fff;
+      padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700;
+      transition: transform 0.1s; line-height: 1;
+    }
+    .chatbox-send:hover { transform: scale(1.05); }
+    .chatbox-send:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .chatbox-thinking { display: inline-block; padding: 4px 8px; border-radius: 6px; background: rgba(0,212,255,0.12); color: var(--cyan); font-size: 11px; font-style: italic; animation: pulse 1.4s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+  </style>
+  <link rel="stylesheet" href="css/cyberpunk.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <div class="shield-icon">🛡️</div>
+      <span>CrimeIntel <span class="accent">AI</span></span>
+    </div>
+    <div class="navbar-nav">
+      <a href="/" class="nav-link">Home</a>
+      <a href="/complaint" class="nav-link active">File Complaint</a>
+      <a href="/dashboard" class="nav-link">Dashboard</a>
+      <a href="/agents" class="nav-link">Agent Monitor</a>
+    </div>
+    <div class="navbar-actions">
+      <span id="mode-badge" class="mode-badge mock">DEMO MODE</span>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="complaint-layout">
+      <!-- Main Form -->
+      <div class="form-card">
+        <div class="form-body" id="form-body">
+          <div class="page-title">🚔 File a Complaint</div>
+          <div class="page-subtitle">Submit your complaint below. Our AI pipeline will analyze and route it instantly.</div>
+
+          <form id="complaint-form">
+            <div class="form-group" style="margin-bottom:20px">
+              <label class="form-label" for="complaintText">Describe the Incident <span style="color:var(--critical)">*</span></label>
+              <textarea
+                class="form-control complaint-textarea"
+                id="complaintText"
+                name="complaintText"
+                placeholder="Describe what happened in as much detail as possible. Include location, time, people involved, and any evidence or witnesses you observed..."
+                required
+                minlength="30"
+              ></textarea>
+              <div class="char-count"><span id="char-count">0</span> / 2000 characters</div>
+            </div>
+
+            <div class="tip-box" style="margin-bottom:20px">
+              <h4>💡 Quick Fill — Click to use example</h4>
+              <div class="crime-examples">
+                <span class="crime-chip" onclick="fillExample('chain')">⛓️ Chain Snatching</span>
+                <span class="crime-chip" onclick="fillExample('cyber')">💻 Cyber Fraud</span>
+                <span class="crime-chip" onclick="fillExample('murder')">⚰️ Murder Report</span>
+                <span class="crime-chip" onclick="fillExample('drug')">💊 Drug Trafficking</span>
+                <span class="crime-chip" onclick="fillExample('domestic')">🏠 Domestic Violence</span>
+                <span class="crime-chip" onclick="fillExample('kidnap')">🔗 Kidnapping</span>
+                <span class="crime-chip" onclick="fillExample('arson')">🔥 Arson</span>
+                <span class="crime-chip" onclick="fillExample('extortion')">📵 Extortion</span>
+              <span class="crime-chip" onclick="fillExample('tn_chain')">⛓️ TN Chain Snatching</span>
+              <span class="crime-chip" onclick="fillExample('tn_cyber')">💻 TN Cyber Fraud</span>
+              <span class="crime-chip" onclick="fillExample('tn_kidnap')">🔗 TN Kidnapping</span>
+              <span class="crime-chip" onclick="fillExample('tn_drug')">💊 TN Drug Peddling</span>
+              <span class="crime-chip" onclick="fillExample('tn_arson')">🔥 TN Arson</span>
+              </div>
+            </div>
+
+            <div class="form-row" style="margin-bottom:20px">
+              <div class="form-group">
+                <label class="form-label" for="reporterName">Your Name</label>
+                <input class="form-control" id="reporterName" name="reporterName" type="text" placeholder="Anonymous (optional)">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="reporterPhone">Contact Number</label>
+                <input class="form-control" id="reporterPhone" name="reporterPhone" type="tel" placeholder="+91 XXXXX XXXXX (optional)">
+              </div>
+            </div>
+
+            <div class="form-row" style="margin-bottom:20px">
+              <div class="form-group">
+                <label class="form-label" for="city">City</label>
+                <select class="form-control" id="city" name="city">
+                  <option value="">Select city</option>
+                  <option>Delhi</option>
+                  <option>Mumbai</option>
+                  <option>Bengaluru</option>
+                  <option>Hyderabad</option>
+                  <option>Chennai</option>
+                  <option>Kolkata</option>
+                  <option>Pune</option>
+                  <option>Ahmedabad</option>
+                  <option>Jaipur</option>
+                  <option>Lucknow</option>
+                  <option>Noida</option>
+                  <option>Gurugram</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="incidentType">Incident Type (Optional)</label>
+                <select class="form-control" id="incidentType" name="incidentType">
+                  <option value="">Let AI classify</option>
+                  <option>Theft / Robbery</option>
+                  <option>Assault</option>
+                  <option>Cybercrime / Fraud</option>
+                  <option>Drug Trafficking</option>
+                  <option>Kidnapping</option>
+                  <option>Murder / Homicide</option>
+                  <option>Domestic Violence</option>
+                  <option>Sexual Harassment</option>
+                  <option>Arson</option>
+                  <option>Extortion</option>
+                  <option>Hit & Run</option>
+                  <option>Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="submit-section">
+              <div class="disclaimer">
+                🔒 Your complaint is confidential and encrypted. Personal details are optional and only used for follow-up.
+              </div>
+              <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">
+                <span id="btn-text">🚀 Submit & Analyze</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Success Screen -->
+        <div class="success-screen" id="success-screen">
+          <span class="success-icon">✅</span>
+          <h2 style="font-size:24px; font-weight:800; margin-bottom:8px;">Complaint Filed Successfully!</h2>
+          <p style="color:var(--text-secondary); margin-bottom:16px;">Your case has been processed by all 6 AI agents and is now in the triage queue.</p>
+          <div class="case-id-display" id="success-case-id">CID-XXXXXX</div>
+          <p style="font-size:13px; color:var(--text-muted); margin-bottom:28px;">Keep this case ID for follow-up. You can track it on the dashboard.</p>
+          <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+            <a href="/dashboard" class="btn btn-primary">📊 View in Dashboard</a>
+            <button onclick="resetForm()" class="btn btn-ghost">+ File Another</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar: Agent Pipeline -->
+      <div class="pipeline-sidebar">
+        <!-- Chatbox toggle chip -->
+        <div class="chatbox-toggle-wrap">
+          <button id="chatbox-toggle" class="chatbox-toggle" title="Open AI complaint assistant">
+            <span>🤖</span><span>Ask the AI what sections this complaint covers</span>
+          </button>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header">
+            <div class="card-title">🤖 AI Agent Pipeline</div>
+            <div style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono)" id="pipeline-status">READY</div>
+          </div>
+          <div class="card-body">
+            <div class="pipeline-container" id="pipeline-steps">
+              <!-- Steps injected by JS -->
+            </div>
+          </div>
+        </div>
+
+        <div class="tip-box">
+          <h4>📝 Tips for Better Analysis</h4>
+          <ul>
+            <li>Include the exact location (area, landmark)</li>
+            <li>Mention approximate time of incident</li>
+            <li>Describe suspect's appearance if seen</li>
+            <li>List any evidence or witnesses</li>
+            <li>Note if incident is ongoing</li>
+          </ul>
+        </div>
+
+        <!-- Chatbox panel -->
+        <div class="chatbox-panel" id="chatbox-panel" hidden>
+          <div class="chatbox-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:18px;">💬</span>
+              <div>
+                <div style="font-weight:700; font-size:13px;">AI Complaint Assistant</div>
+                <div style="font-size:11px; color:var(--text-muted);">Ask what sections & charges apply to your complaint</div>
+              </div>
+            </div>
+            <button id="chatbox-close" class="chatbox-close" title="Close assistant">✕</button>
+          </div>
+          <div class="chatbox-messages" id="chatbox-messages">
+            <div class="chatbox-prompt" id="chatbox-prompt">
+              The AI will scan your complaint and list every section — IPC charges, department routing, action items, intelligence flags, and more. Type your question below or use a suggested prompt.
+            </div>
+          </div>
+          <div class="chatbox-input-row">
+            <div class="chatbox-suggestions" id="chatbox-suggestions">
+              <span class="chat-suggest" onclick="chatSuggest('sections')">What sections apply?</span>
+              <span class="chat-suggest" onclick="chatSuggest('ipc')">IPC sections</span>
+              <span class="chat-suggest" onclick="chatSuggest('action')">Action items</span>
+              <span class="chat-suggest" onclick="chatSuggest('routing')">Department routing</span>
+            </div>
+            <div class="chatbox-input-wrap">
+              <input class="chatbox-input" id="chatbox-input" type="text" placeholder="e.g. What IPC sections apply?" autocomplete="off">
+              <button id="chatbox-send" class="chatbox-send" title="Send">➤</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <div style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted); margin-bottom:12px;">Emergency Contacts</div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <div style="display:flex; justify-content:space-between; font-size:13px;">
+                <span style="color:var(--text-secondary)">Police Control Room</span>
+                <span style="color:var(--critical); font-weight:700; font-family:var(--font-mono)">100</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:13px;">
+                <span style="color:var(--text-secondary)">Women Helpline</span>
+                <span style="color:var(--critical); font-weight:700; font-family:var(--font-mono)">1091</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:13px;">
+                <span style="color:var(--text-secondary)">Cyber Crime</span>
+                <span style="color:var(--critical); font-weight:700; font-family:var(--font-mono)">1930</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:13px;">
+                <span style="color:var(--text-secondary)">Child Helpline</span>
+                <span style="color:var(--critical); font-weight:700; font-family:var(--font-mono)">1098</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="js/app.js"></script>
+  <script src="js/complaint.js"></script>
+</body>
+</html>

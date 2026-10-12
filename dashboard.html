@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Command Center — CrimeIntel AI</title>
+  <meta name="description" content="Live crime intelligence dashboard: case stats, crime heatmap, case queue, and AI agent activity.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/cyberpunk.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <div class="shield-icon">🛡️</div>
+      <span>CrimeIntel <span class="accent">AI</span></span>
+    </div>
+    <div class="navbar-nav">
+      <a href="/" class="nav-link">Home</a>
+      <a href="/complaint" class="nav-link">File Complaint</a>
+      <a href="/dashboard" class="nav-link active">Dashboard</a>
+      <a href="/agents" class="nav-link">Agent Monitor</a>
+    </div>
+    <div class="navbar-actions">
+      <span id="mode-badge" class="mode-badge mock">DEMO MODE</span>
+      <a href="/complaint" class="btn btn-primary btn-sm">+ New Complaint</a>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="dashboard-header">
+      <div>
+        <h1>📊 Command Center</h1>
+        <div class="sub">Real-time case queue, crime map, and AI agent telemetry</div>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center">
+        <span id="model-badge" class="mode-badge mock" style="font-size:11px; padding:3px 10px">ML: —</span>
+        <button class="btn btn-ghost btn-sm" onclick="refreshAll()">🔄 Refresh</button>
+      <button id="dash-chat-toggle" class="dash-chat-toggle" title="Ask the AI about your case data">
+        <span>🤖</span><span>Ask the AI</span>
+      </button>
+      </div>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="dash-section">
+      <div class="grid-4">
+        <div class="stat-card" style="--accent-gradient: linear-gradient(90deg, #00d4ff, transparent)">
+          <div class="stat-label">Total Cases</div>
+          <div class="stat-value" id="stat-total">—</div>
+          <div class="stat-delta" id="stat-total-delta">All time</div>
+        </div>
+        <div class="stat-card" style="--accent-gradient: linear-gradient(90deg, #ffd60a, transparent)">
+          <div class="stat-label">Open Cases</div>
+          <div class="stat-value" id="stat-open">—</div>
+          <div class="stat-delta">Awaiting action</div>
+        </div>
+        <div class="stat-card" style="--accent-gradient: linear-gradient(90deg, #ff3b5c, transparent)">
+          <div class="stat-label">Critical Alerts</div>
+          <div class="stat-value" id="stat-critical">—</div>
+          <div class="stat-delta" style="color:var(--critical)">1h SLA response</div>
+        </div>
+        <div class="stat-card" style="--accent-gradient: linear-gradient(90deg, #06d6a0, transparent)">
+          <div class="stat-label">Resolved</div>
+          <div class="stat-value" id="stat-resolved">—</div>
+          <div class="stat-delta">Cases closed</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tamil Nadu State Summary -->
+    <div class="dash-section">
+      <div class="tn-state-card card" id="tn-state-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span style="font-size:18px">🇮🇳</span> Tamil Nadu — State Crime Snapshot
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono)" id="tn-update-time">loading…</div>
+        </div>
+        <div class="card-body">
+          <div class="tn-grid" id="tn-grid">
+            <div class="tn-stat">
+              <div class="tn-stat-value" id="tn-total">—</div>
+              <div class="tn-stat-label">Total TN Cases</div>
+            </div>
+            <div class="tn-stat">
+              <div class="tn-stat-value" id="tn-critical">—</div>
+              <div class="tn-stat-label">Critical</div>
+            </div>
+            <div class="tn-stat">
+              <div class="tn-stat-value" id="tn-open">—</div>
+              <div class="tn-stat-label">Open</div>
+            </div>
+            <div class="tn-stat">
+              <div class="tn-stat-value" id="tn-resolved">—</div>
+              <div class="tn-stat-label">Resolved</div>
+            </div>
+          </div>
+          <div style="margin-top:20px">
+            <strong style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted)">🏙️ Cases by City</strong>
+            <div class="tn-cities" id="tn-cities" style="margin-top:12px"></div>
+          </div>
+          <div style="margin-top:20px">
+            <strong style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted)">🔍 Crime Types</strong>
+            <div class="tn-crimes" id="tn-crimes" style="margin-top:12px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Crime Map -->
+    <div class="dash-section">
+      <div class="card map-card">
+        <div class="card-header">
+          <div class="card-title">🗺️ Live Crime Map</div>
+          <div style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono)" id="map-count">0 markers</div>
+          <button id="toggle-3d">3D VIEW</button>
+        </div>
+        <div id="crime-map"></div>
+        <div id="scene-3d">
+          <div class="scene-label">DRAG TO ROTATE · SCROLL TO ZOOM</div>
+          <div class="legend-3d">
+            <div class="row"><span class="swatch crit"></span> CRITICAL</div>
+            <div class="row"><span class="swatch high"></span> HIGH</div>
+            <div class="row"><span class="swatch med"></span> MEDIUM</div>
+            <div class="row"><span class="swatch low"></span> LOW</div>
+          </div>
+          <div id="time-slider-wrap">
+            <div class="slider-header">
+              <div class="slider-label">
+                <span class="icon">⏱</span> Time Filter
+              </div>
+              <div class="range-vals"><span id="slider-min">0</span> – <span id="slider-max">23</span></div>
+            </div>
+            <input type="range" id="time-slider" min="0" max="24" value="24" step="1">
+            <div id="time-info">
+              <span>Filter: <span class="active-hour" id="active-hour-label">All Hours</span></span>
+              <span>Cases shown: <span class="case-count" id="case-count-label">0</span></span>
+            </div>
+          </div>
+        </div>
+        <div class="map-legend" style="display:none" id="2d-legend">
+          <span class="lg"><span class="dot legend-CRITICAL"></span> CRITICAL</span>
+          <span class="lg"><span class="dot legend-HIGH"></span> HIGH</span>
+          <span class="lg"><span class="dot legend-MEDIUM"></span> MEDIUM</span>
+          <span class="lg"><span class="dot legend-LOW"></span> LOW</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cases + Activity -->
+    <div class="dash-section">
+      <div class="cases-layout">
+        <!-- Case Queue -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🚔 Case Queue</div>
+            <div class="filter-bar" style="margin-bottom:0">
+              <select class="form-control" id="status-filter" onchange="loadCases()">
+                <option value="">All Status</option>
+                <option value="open">Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+                <option value="closed">Closed</option>
+              </select>
+              <input class="form-control search-input" id="case-search" placeholder="Search case ID, crime type, city…" oninput="loadCases()">
+            </div>
+          </div>
+          <div class="table-wrap" id="cases-body">
+            <div class="empty-state">Loading cases…</div>
+          </div>
+        </div>
+
+        <!-- Activity Feed -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🤖 Agent Activity</div>
+            <div style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono)" id="activity-status">LIVE</div>
+          </div>
+          <div class="card-body">
+            <div class="activity-log" id="activity-log"></div>
+          </div>
+          <div class="card-body" style="padding-top:8px">
+            <div class="agent-mini" style="border-top:1px solid var(--border)">
+              <div class="dot" style="background:var(--text-accent)"></div>
+              <div class="nm">All Agents</div>
+              <div class="cnt" id="agent-total">— processed</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Unassigned Cases Widget -->
+        <div class="unassigned-widget card">
+          <div class="card-header" style="border-bottom:none; padding-bottom:4px">
+            <div class="card-title">
+              <span style="font-size:18px">👮‍♂️</span> Unassigned Cases
+              <span class="badge-count" id="unassigned-count">0</span>
+            </div>
+          </div>
+          <div class="unassigned-list" id="unassigned-list">
+            <div class="unassigned-empty">Loading…</div>
+          </div>
+        </div>
+
+        <!-- Dashboard AI Chatbox -->
+        <div class="dash-chatbox-panel" id="dash-chatbox-panel" hidden>
+          <div class="dash-chatbox-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:18px;">💬</span>
+              <div>
+                <div style="font-weight:700; font-size:13px;">AI Dashboard Assistant</div>
+                <div style="font-size:11px; color:var(--text-muted);">Ask about your case data — totals, trends, hotspots, districts</div>
+              </div>
+            </div>
+            <button id="dash-chatbox-close" class="dash-chatbox-close" title="Close assistant">✕</button>
+          </div>
+          <div class="dash-chatbox-messages" id="dash-chatbox-messages">
+            <div class="dash-chatbox-prompt" id="dash-chatbox-prompt">
+              The AI can answer questions about your case data: total cases, open/critical counts, leading crime types, worst-affected cities, hourly trends, and more. Type a question below or use a suggestion.
+            </div>
+          </div>
+          <div class="dash-chatbox-input-row">
+            <div class="dash-chatbox-suggestions" id="dash-chatbox-suggestions">
+              <span class="dash-chat-suggest" onclick="dashChatSuggest('totals')">Total & status</span>
+              <span class="dash-chat-suggest" onclick="dashChatSuggest('crimes')">Top crime types</span>
+              <span class="dash-chat-suggest" onclick="dashChatSuggest('cities')">Worst cities</span>
+              <span class="dash-chat-suggest" onclick="dashChatSuggest('hourly')">Hourly trend</span>
+              <span class="dash-chat-suggest" onclick="dashChatSuggest('casesByCrime')">Cases under a crime</span>
+            </div>
+            <div class="dash-chatbox-input-wrap">
+              <input class="dash-chatbox-input" id="dash-chatbox-input" type="text" placeholder="e.g. which city has the most critical cases?" autocomplete="off">
+              <button id="dash-chatbox-send" class="dash-chatbox-send" title="Send">➤</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Case Detail Modal -->
+  <div class="modal-overlay" id="case-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <div style="font-size:18px; font-weight:800; display:flex; align-items:center; gap:10px" id="modal-title">Case</div>
+          <div style="font-size:12px; color:var(--text-secondary)" id="modal-meta"></div>
+        </div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="js/app.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="js/dashboard-3d.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

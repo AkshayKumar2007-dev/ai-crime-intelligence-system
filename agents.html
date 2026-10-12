@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Monitor — CrimeIntel AI</title>
+  <meta name="description" content="Live telemetry for all 6 AI agents: processing stats, average latency, and real-time activity feed.">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .agents-header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; flex-wrap: wrap;
+      padding: 40px 24px 8px;
+      max-width: 1400px; margin: 0 auto;
+    }
+    .agents-header h1 { font-size: 28px; font-weight: 800; }
+    .agents-header .sub { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+    .agents-section { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
+    .agents-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+    .agent-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      transition: var(--transition);
+    }
+    .agent-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent, var(--text-accent));
+    }
+    .agent-card:hover { transform: translateY(-4px); border-color: var(--border-accent); box-shadow: var(--shadow-card); }
+    .agent-card-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+    .agent-card-icon {
+      width: 46px; height: 46px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      background: var(--accent-soft, rgba(0,212,255,0.1));
+    }
+    .agent-card-name { font-size: 15px; font-weight: 700; }
+    .agent-card-desc { font-size: 12px; color: var(--text-secondary); }
+    .agent-card-status {
+      margin-left: auto; font-size: 10px; font-weight: 700; font-family: var(--font-mono);
+      padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .agent-card-status.idle { background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid var(--border); }
+    .agent-card-status.processing { background: rgba(0,212,255,0.12); color: var(--text-accent); border: 1px solid rgba(0,212,255,0.3); animation: pulse-critical 1.5s infinite; }
+    .agent-card-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .agent-stat { padding: 12px; border-radius: var(--radius-md); background: var(--bg-glass); border: 1px solid var(--border); }
+    .agent-stat .v { font-size: 22px; font-weight: 800; font-family: var(--font-mono); color: var(--accent, var(--text-accent)); }
+    .agent-stat .l { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 2px; }
+    .pipeline-visual {
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px; flex-wrap: wrap;
+      padding: 28px 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      margin-bottom: 20px;
+    }
+    .pv-node {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 13px; font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--bg-glass);
+      color: var(--text-secondary);
+      transition: var(--transition);
+    }
+    .pv-node.live { color: var(--pv-color); border-color: var(--pv-color); box-shadow: 0 0 14px var(--pv-glow); }
+    .pv-arrow { color: var(--text-muted); font-size: 18px; }
+    .agents-layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
+    .activity-log { max-height: 520px; }
+    @media (max-width: 1024px) {
+      .agents-layout { grid-template-columns: 1fr; }
+    }
+  </style>
+  <link rel="stylesheet" href="css/cyberpunk.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <div class="shield-icon">🛡️</div>
+      <span>CrimeIntel <span class="accent">AI</span></span>
+    </div>
+    <div class="navbar-nav">
+      <a href="/" class="nav-link">Home</a>
+      <a href="/complaint" class="nav-link">File Complaint</a>
+      <a href="/dashboard" class="nav-link">Dashboard</a>
+      <a href="/agents" class="nav-link active">Agent Monitor</a>
+    </div>
+    <div class="navbar-actions">
+      <span id="mode-badge" class="mode-badge mock">DEMO MODE</span>
+      <a href="/complaint" class="btn btn-primary btn-sm">+ New Complaint</a>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="agents-header">
+      <div>
+        <h1>🤖 Agent Monitor</h1>
+        <div class="sub">Live telemetry for all 6 AI agents in the triage pipeline</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="refreshAgents()">🔄 Refresh</button>
+    </div>
+
+    <div class="agents-section">
+      <!-- Pipeline visual -->        <div class="pipeline-visual" id="pipeline-visual"></div>
+        <div style="display:flex; gap:12px; align-items:center; padding: 4px 0; font-size:11px; color:var(--text-muted); font-family:var(--font-mono);">
+          <span id="agents-status-indicator" style="color:var(--text-muted)">● starting…</span>
+          <span style="margin-left:auto" id="agents-total-cases">0 total cases</span>
+        </div>
+
+      <div class="agents-layout">
+        <!-- Agent cards -->
+        <div class="agents-grid" id="agents-grid"></div>
+
+        <!-- Live activity -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📡 Live Agent Activity</div>
+            <div style="font-size:11px;color:var(--low);font-family:var(--font-mono)" id="live-indicator">● LIVE</div>
+          </div>
+          <div class="card-body">
+            <div class="activity-log" id="agents-activity-log"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="js/app.js"></script>
+  <script src="js/agents.js"></script>
+</body>
+</html>
